@@ -159,28 +159,41 @@ class Singularity:
 
     def check(self):
         if not self.checked:
-            if not shutil.which("singularity"):
+            singularity_exists = shutil.which("singularity")
+            apptainer_exists = shutil.which("apptainer")
+            if not singularity_exists and not apptainer_exists:
                 raise WorkflowError(
-                    "The singularity command has to be "
-                    "available in order to use singularity "
-                    "integration."
+                    "The singularity or apptainer command "
+                    "has to be available in order to use "
+                    "singularity or apptainer integration."
                 )
-            try:
-                v = subprocess.check_output(
-                    ["singularity", "--version"], stderr=subprocess.PIPE
-                ).decode()
-            except subprocess.CalledProcessError as e:
-                raise WorkflowError(
-                    "Failed to get singularity version:\n{}".format(e.stderr.decode())
-                )
-            if v.startswith("apptainer"):
+            if apptainer_exists:
+                try:
+                    v = subprocess.check_output(
+                        ["apptainer", "--version"], stderr=subprocess.PIPE
+                    ).decode()
+                except subprocess.CalledProcessError as e:
+                    raise WorkflowError(
+                        "Failed to get apptainer version:\n{}".format(e.stderr.decode())
+                    )
                 v = v.rsplit(" ", 1)[-1]
                 if not LooseVersion(v) >= LooseVersion("1.0.0"):
                     raise WorkflowError("Minimum apptainer version is 1.0.0.")
-            else:
+
+                self._version = v
+            elif singularity_exists:
+                try:
+                    v = subprocess.check_output(
+                        ["singularity", "--version"], stderr=subprocess.PIPE
+                    ).decode()
+                except subprocess.CalledProcessError as e:
+                    raise WorkflowError(
+                        "Failed to get singularity version:\n{}".format(e.stderr.decode())
+                    )
+
                 v = v.rsplit(" ", 1)[-1]
                 if v.startswith("v"):
                     v = v[1:]
                 if not LooseVersion(v) >= LooseVersion("2.4.1"):
                     raise WorkflowError("Minimum singularity version is 2.4.1.")
-            self._version = v
+                self._version = v
